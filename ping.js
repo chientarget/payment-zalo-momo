@@ -5,7 +5,7 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 8855;
-const SERVER_URL = `https://payment-zalo-momo.onrender.com`;
+const SERVER_URL = process.env.SERVER_URL;
 
 // Auto ping function
 const pingServer = async () => {
