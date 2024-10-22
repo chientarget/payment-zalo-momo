@@ -148,7 +148,7 @@ app.post('/check-status-order', async (req, res) => {
 app.listen(process.env.PORT, function() {
   console.log(`Server is listening at port :${process.env.PORT}`);
 
-  console.log(`Ping server is running on port ${PORT}`);
+  console.log(`Ping server is running on port ${process.env.PORT}`);
   // Start auto ping immediately
   console.log('Auto-ping service started');
   setInterval(pingServer, 60000); // Ping every minute
