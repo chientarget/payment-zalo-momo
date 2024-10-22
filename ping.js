@@ -26,11 +26,4 @@ app.get('/ping', (req, res) => {
     });
 });
 
-// Start server and begin pinging
-app.listen(PORT, () => {
-    console.log(`Ping server is running on port ${PORT}`);
-    // Start auto ping immediately
-    console.log('Auto-ping service started');
-    setInterval(pingServer, 60000); // Ping every minute
-    pingServer(); // Initial ping
-});
+module.exports = { pingServer };

@@ -6,6 +6,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const qs = require('qs');
 const path = require('path');
+const { pingServer } = require('../ping');
 const app = express();
 
 const config = {
@@ -144,6 +145,12 @@ app.post('/check-status-order', async (req, res) => {
   }
 });
 
-// app.listen(process.env.PORT, function() {
-//   console.log(`Server is listening at port :${process.env.PORT}`);
-// });
+app.listen(process.env.PORT, function() {
+  console.log(`Server is listening at port :${process.env.PORT}`);
+
+  console.log(`Ping server is running on port ${PORT}`);
+  // Start auto ping immediately
+  console.log('Auto-ping service started');
+  setInterval(pingServer, 60000); // Ping every minute
+  pingServer(); // Initial ping
+});
