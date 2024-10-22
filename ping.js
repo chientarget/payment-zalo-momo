@@ -1,10 +1,13 @@
 // ping.js
+const express = require('express');
 const axios = require('axios');
 require('dotenv').config();
 
+const app = express();
 const PORT = process.env.PORT || 8855;
-const SERVER_URL = `https://payment-zalo-momo.onrender.com`; // Thay thế bằng URL của bạn
+const SERVER_URL = `https://payment-zalo-momo.onrender.com`;
 
+// Auto ping function
 const pingServer = async () => {
     try {
         const response = await axios.get(`${SERVER_URL}/ping`);
@@ -13,20 +16,6 @@ const pingServer = async () => {
         console.error(`[${new Date().toISOString()}] Ping failed:`, error.message);
     }
 };
-
-// Ping every 1 minute
-const startPinging = () => {
-    console.log('Auto-ping service started');
-    setInterval(pingServer, 60000); // 60000ms = 1 minute
-    pingServer(); // Initial ping
-};
-
-module.exports = { startPinging };
-
-// server.js updates
-const express = require('express');
-const { startPinging } = require('./ping');
-const app = express();
 
 // Ping endpoint
 app.get('/ping', (req, res) => {
@@ -37,8 +26,11 @@ app.get('/ping', (req, res) => {
     });
 });
 
-// Start server
+// Start server and begin pinging
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    startPinging(); // Start auto-ping service
+    console.log(`Ping server is running on port ${PORT}`);
+    // Start auto ping immediately
+    console.log('Auto-ping service started');
+    setInterval(pingServer, 60000); // Ping every minute
+    pingServer(); // Initial ping
 });
