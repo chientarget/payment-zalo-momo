@@ -144,6 +144,6 @@ app.post('/check-status-order', async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT, function() {
-  console.log(`Server is listening at port :${process.env.PORT}`);
-});
+// app.listen(process.env.PORT, function() {
+//   console.log(`Server is listening at port :${process.env.PORT}`);
+// });
