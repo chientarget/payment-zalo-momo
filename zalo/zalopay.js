@@ -6,7 +6,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const qs = require('qs');
 const path = require('path');
-const { pingServer } = require('../ping');
 const app = express();
 
 const config = {
@@ -144,6 +143,27 @@ app.post('/check-status-order', async (req, res) => {
     console.log(error);
   }
 });
+
+
+
+const pingServer = async () => {
+  try {
+    const response = await axios.get(`${process.env.DOMAIN}/ping`);
+    console.log(`[${new Date().toISOString()}] Server pinged successfully:`, response.data);
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Ping failed:`, error.message);
+  }
+};
+
+// Ping endpoint
+app.get('/ping', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Server is alive',
+    timestamp: new Date().toISOString()
+  });
+});
+
 
 app.listen(process.env.PORT, function() {
   console.log(`Server is listening at port :${process.env.PORT}`);
