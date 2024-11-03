@@ -64,7 +64,7 @@ app.post('/payment', async (req, res) => {
 
     order.mac = CryptoJS.HmacSHA256(data, config.key1).toString();
 
-    const response = await axios.post(process.env.ZALOPAY_CREATE_URL, null, {
+    const response = await axios.post(process.env.ZALOPAY_CREATE_URL, data, {
       params: order,
     });
 
