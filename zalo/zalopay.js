@@ -9,174 +9,172 @@ const path = require('path');
 const app = express();
 
 const config = {
-  app_id: process.env.ZALOPAY_APP_ID,
-  key1: process.env.ZALOPAY_KEY1,
-  key2: process.env.ZALOPAY_KEY2,
-  key3: process.env.ZALOPAY_KEY3,
+    app_id: process.env.ZALOPAY_APP_ID,
+    key1: process.env.ZALOPAY_KEY1,
+    key2: process.env.ZALOPAY_KEY2,
+    key3: process.env.ZALOPAY_KEY3,
 };
 
 app.use(bodyParser.json());
 
 app.post('/payment', async (req, res) => {
-  try {
-    // Validate required fields from request body
-    const requiredFields = ['user_id', 'amount', 'description', 'title'];
-    for (const field of requiredFields) {
-      if (!req.body[field]) {
-        return res.status(400).json({
-          error: `Missing required field: ${field}`,
+    try {
+        // Validate required fields from request body
+        const requiredFields = ['user_id', 'amount', 'description', 'title'];
+        for (const field of requiredFields) {
+            if (!req.body[field]) {
+                return res.status(400).json({
+                    error: `Missing required field: ${field}`,
+                });
+            }
+        }
+
+        const transID = Math.floor(Math.random() * 1000000);
+
+        // Get data from request body with defaults
+        const embed_data = {
+            redirecturl: process.env.REDIRECT_URL,
+            ...req.body.embed_data,
+        };
+
+        const items = req.body.items || [{}];
+
+        const order = {
+            app_id: config.app_id,
+            app_trans_id: `${moment().format('YYMMDD')}_${transID}`,
+            app_user: req.body.user_id,
+            app_time: Date.now(),
+            item: JSON.stringify(items),
+            embed_data: JSON.stringify(embed_data),
+            callback_url: process.env.CALLBACK_URL,
+            amount: parseInt(req.body.amount),
+            description: req.body.description || `Thanh toán gói Premium #${transID}`,
+            bank_code: req.body.bank_code || '', // Allow bank_code to be empty
+            title: req.body.title || '',
+        };
+
+        // Create mac signature
+        const data = config.app_id + '|' +
+            order.app_trans_id + '|' +
+            order.app_user + '|' +
+            order.amount + '|' +
+            order.app_time + '|' +
+            order.embed_data + '|' +
+            order.item;
+
+        order.mac = CryptoJS.HmacSHA256(data, config.key1).toString();
+
+        const response = await axios.post(process.env.ZALOPAY_CREATE_URL, null, {
+            params: order,
         });
-      }
+
+        // Add app_trans_id to the response
+        const responseData = {
+            ...response.data,
+            app_trans_id: order.app_trans_id,
+        };
+
+        return res.status(200).json(responseData);
+    } catch (error) {
+        console.error('Payment error:', error);
+        return res.status(500).json({
+            error: 'Internal Server Error',
+            message: error.message,
+        });
     }
-
-    const transID = Math.floor(Math.random() * 1000000);
-
-    // Get data from request body with defaults
-    const embed_data = {
-      redirecturl: process.env.REDIRECT_URL,
-      ...req.body.embed_data,
-    };
-
-    const items = req.body.items || [{}];
-
-    const order = {
-      app_id: config.app_id,
-      app_trans_id: `${moment().format('YYMMDD')}_${transID}`,
-      app_user: req.body.user_id,
-      app_time: Date.now(),
-      item: JSON.stringify(items),
-      embed_data: JSON.stringify(embed_data),
-      callback_url: process.env.CALLBACK_URL,
-      amount: parseInt(req.body.amount),
-      description: req.body.description || `Thanh toán gói Premium #${transID}`,
-      bank_code: req.body.bank_code || '', // Allow bank_code to be empty
-      title: req.body.title || '',
-    };
-
-    // Create mac signature
-    const data = config.app_id + '|' +
-        order.app_trans_id + '|' +
-        order.app_user + '|' +
-        order.amount + '|' +
-        order.app_time + '|' +
-        order.embed_data + '|' +
-        order.item;
-
-    order.mac = CryptoJS.HmacSHA256(data, config.key1).toString();
-
-    const response = await axios.post(process.env.ZALOPAY_CREATE_URL, null, {
-      params: order,
-    });
-
-    // Add app_trans_id to the response
-    const responseData = {
-      ...response.data,
-      app_trans_id: order.app_trans_id,
-    };
-
-    return res.status(200).json(responseData);
-
-  } catch (error) {
-    console.error('Payment error:', error);
-    return res.status(500).json({
-      error: 'Internal Server Error',
-      message: error.message,
-    });
-  }
 });
 
 app.all('/callback', (req, res) => {
-  let result = {};
+    let result = {};
 
-  try {
-    // Xử lý yêu cầu GET hoặc POST
-    let dataStr = req.body.data || req.query.data; // Kiểm tra cả body và query string
-    let reqMac = req.body.mac || req.query.mac;
+    try {
+        // Xử lý yêu cầu GET hoặc POST
+        let dataStr = req.body.data || req.query.data; // Kiểm tra cả body và query string
+        let reqMac = req.body.mac || req.query.mac;
 
-    // Tính toán lại MAC từ dữ liệu nhận được và key2
-    let mac = CryptoJS.HmacSHA256(dataStr, config.key2).toString();
-    console.log('mac =', mac);
+        // Tính toán lại MAC từ dữ liệu nhận được và key2
+        let mac = CryptoJS.HmacSHA256(dataStr, config.key2).toString();
+        console.log('mac =', mac);
 
-    // Kiểm tra MAC có hợp lệ không
-    if (reqMac !== mac) {
-      result.return_code = -1;
-      result.return_message = 'mac not equal';
-      console.log('MAC not valid.');
-    } else {
-      // Xử lý thanh toán thành công
-      let dataJson = JSON.parse(dataStr);
-      console.log('Payment successful for transaction id =', dataJson['app_trans_id']);
+        // Kiểm tra MAC có hợp lệ không
+        if (reqMac !== mac) {
+            result.return_code = -1;
+            result.return_message = 'mac not equal';
+            console.log('MAC not valid.');
+        } else {
+            // Xử lý thanh toán thành công
+            let dataJson = JSON.parse(dataStr);
+            console.log('Payment successful for transaction id =', dataJson['app_trans_id']);
 
-      result.return_code = 1;
-      result.return_message = 'success';
+            result.return_code = 1;
+            result.return_message = 'success';
+        }
+    } catch (ex) {
+        result.return_code = 0; // ZaloPay sẽ callback lại (tối đa 3 lần)
+        result.return_message = ex.message;
+        console.error('Error during callback processing:', ex.message);
     }
-  } catch (ex) {
-    result.return_code = 0; // ZaloPay sẽ callback lại (tối đa 3 lần)
-    result.return_message = ex.message;
-    console.error('Error during callback processing:', ex.message);
-  }
 
-  // Trả về kết quả cho ZaloPay
-  res.json(result);
+    // Trả về kết quả cho ZaloPay
+    res.json(result);
 });
 
 app.post('/check-status-order', async (req, res) => {
-  const { app_trans_id } = req.body;
+    const {app_trans_id} = req.body;
 
-  let postData = {
-    app_id: config.app_id,
-    app_trans_id,
-  };
+    let postData = {
+        app_id: config.app_id,
+        app_trans_id,
+    };
 
-  let data = postData.app_id + '|' + postData.app_trans_id + '|' + config.key1; // appid|app_trans_id|key1
-  postData.mac = CryptoJS.HmacSHA256(data, config.key1).toString();
+    let data = postData.app_id + '|' + postData.app_trans_id + '|' + config.key1; // appid|app_trans_id|key1
+    postData.mac = CryptoJS.HmacSHA256(data, config.key1).toString();
 
-  let postConfig = {
-    method: 'post',
-    url: process.env.ZALOPAY_QUERY_URL,
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    data: qs.stringify(postData),
-  };
+    let postConfig = {
+        method: 'post',
+        url: process.env.ZALOPAY_QUERY_URL,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        data: qs.stringify(postData),
+    };
 
-  try {
-    const result = await axios(postConfig);
-    console.log(result.data);
-    return res.status(200).json(result.data);
-  } catch (error) {
-    console.log('lỗi ohhhhh');
-    console.log(error);
-  }
+    try {
+        const result = await axios(postConfig);
+        console.log(result.data);
+        return res.status(200).json(result.data);
+    } catch (error) {
+        console.log('lỗi ohhhhh');
+        console.log(error);
+    }
 });
 
 
-
 const pingServer = async () => {
-  try {
-    const response = await axios.get(`${process.env.DOMAIN}/ping`);
-    console.log(`[${new Date().toISOString()}] Server pinged successfully:`, response.data);
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] Ping failed:`, error.message);
-  }
+    try {
+        const response = await axios.get(`${process.env.DOMAIN}/ping`);
+        console.log(`[${new Date().toISOString()}] Server pinged successfully:`, response.data);
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Ping failed:`, error.message);
+    }
 };
 
 // Ping endpoint
 app.get('/ping', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Server is alive',
-    timestamp: new Date().toISOString()
-  });
+    res.status(200).json({
+        status: 'success',
+        message: 'Server is alive',
+        timestamp: new Date().toISOString()
+    });
 });
 
 
-app.listen(process.env.PORT, function() {
-  console.log(`Server is listening at port :${process.env.PORT}`);
+app.listen(process.env.PORT, function () {
+    console.log(`Server is listening at port :${process.env.PORT}`);
 
-  console.log(`Ping server is running on port ${process.env.PORT}`);
-  // Start auto ping immediately
-  console.log('Auto-ping service started');
-  setInterval(pingServer, 60000); // Ping every minute
-  pingServer(); // Initial ping
+    console.log(`Ping server is running on port ${process.env.PORT}`);
+    // Start auto ping immediately
+    console.log('Auto-ping service started');
+    setInterval(pingServer, 60000); // Ping every minute
+    pingServer(); // Initial ping
 });
