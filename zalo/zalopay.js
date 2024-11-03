@@ -49,26 +49,32 @@ app.post('/payment', async (req, res) => {
       callback_url: process.env.CALLBACK_URL,
       amount: parseInt(req.body.amount),
       description: req.body.description || `Thanh toán gói Premium #${transID}`,
-      bank_code: req.body.bank_code || '',// Allow bank_code to be empty
+      bank_code: req.body.bank_code || '', // Allow bank_code to be empty
       title: req.body.title || '',
     };
 
     // Create mac signature
     const data = config.app_id + '|' +
-      order.app_trans_id + '|' +
-      order.app_user + '|' +
-      order.amount + '|' +
-      order.app_time + '|' +
-      order.embed_data + '|' +
-      order.item;
+        order.app_trans_id + '|' +
+        order.app_user + '|' +
+        order.amount + '|' +
+        order.app_time + '|' +
+        order.embed_data + '|' +
+        order.item;
 
     order.mac = CryptoJS.HmacSHA256(data, config.key1).toString();
 
-    const response = await axios.post(process.env.ZALOPAY_CREATE_URL, data, {
+    const response = await axios.post(process.env.ZALOPAY_CREATE_URL, null, {
       params: order,
     });
 
-    return res.status(200).json(response.data);
+    // Add app_trans_id to the response
+    const responseData = {
+      ...response.data,
+      app_trans_id: order.app_trans_id,
+    };
+
+    return res.status(200).json(responseData);
 
   } catch (error) {
     console.error('Payment error:', error);
