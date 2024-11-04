@@ -20,7 +20,7 @@ app.use(bodyParser.json());
 app.post('/payment', async (req, res) => {
     try {
         // Validate required fields from request body
-        const requiredFields = ['user_id', 'amount', 'description', 'title'];
+        const requiredFields = ['user_id', 'amount', 'description', 'title', 'redirecturl'];
         for (const field of requiredFields) {
             if (!req.body[field]) {
                 return res.status(400).json({
@@ -33,7 +33,7 @@ app.post('/payment', async (req, res) => {
 
         // Get data from request body with defaults
         const embed_data = {
-            redirecturl: process.env.REDIRECT_URL,
+            redirecturl: req.body.redirecturl || process.env.REDIRECT_URL,
             ...req.body.embed_data,
         };
 
@@ -51,6 +51,7 @@ app.post('/payment', async (req, res) => {
             description: req.body.description || `Thanh toán gói Premium #${transID}`,
             bank_code: req.body.bank_code || '', // Allow bank_code to be empty
             title: req.body.title || '',
+
         };
 
         // Create mac signature
