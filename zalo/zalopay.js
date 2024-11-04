@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const qs = require('qs');
 const path = require('path');
 const app = express();
-
+const cors = require('cors');
 const config = {
     app_id: process.env.ZALOPAY_APP_ID,
     key1: process.env.ZALOPAY_KEY1,
@@ -16,7 +16,11 @@ const config = {
 };
 
 app.use(bodyParser.json());
-
+app.use(cors({
+    origin: 'http://localhost:3388', // Replace with your web application's origin
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.post('/payment', async (req, res) => {
     try {
         // Validate required fields from request body
